@@ -1,0 +1,119 @@
+{
+    "in": {
+        "object": {
+            "data": {
+                "object": {
+                    "assets": {
+                        "from": {
+                            "collection": {
+                                "collection": {
+                                    "paginate": {
+                                        "intersection": [{
+                                            "collection": {
+                                                "match": "asset_mimeType"
+                                            },
+                                            "filter": {
+                                                "expr": {
+                                                    "equals": [{
+                                                        "find": "p",
+                                                        "findstr": {
+                                                            "to_string": {
+                                                                "var": "field"
+                                                            }
+                                                        }
+                                                    }, 0]
+                                                },
+                                                "lambda": ["field", "ref"]
+                                            }
+                                        }, {
+                                            "union": [{
+                                                "collection": {
+                                                    "match": "asset_mimeType"
+                                                },
+                                                "filter": {
+                                                    "expr": {
+                                                        "not": {
+                                                            "equals": [{
+                                                                "find": "zero",
+                                                                "findstr": {
+                                                                    "to_string": {
+                                                                        "var": "field"
+                                                                    }
+                                                                }
+                                                            }, -1]
+                                                        }
+                                                    },
+                                                    "lambda": ["field", "ref"]
+                                                }
+                                            }, {
+                                                "union": {
+                                                    "collection": ["xxxxx", "zzzzzz"],
+                                                    "map": {
+                                                        "expr": {
+                                                            "from": {
+                                                                "var": "val"
+                                                            },
+                                                            "range": {
+                                                                "match": "asset_mimeType"
+                                                            },
+                                                            "to": {
+                                                                "var": "val"
+                                                            }
+                                                        },
+                                                        "lambda": "val"
+                                                    }
+                                                }
+                                            }]
+                                        }]
+                                    },
+                                    "size": 999999999
+                                },
+                                "map": {
+                                    "expr": {
+                                        "get": {
+                                            "var": "ref"
+                                        }
+                                    },
+                                    "lambda": ["field", "ref"]
+                                }
+                            },
+                            "map": {
+                                "expr": {
+                                    "in": {
+                                        "object": {
+                                            "id": {
+                                                "from": {
+                                                    "var": "Query_assets"
+                                                },
+                                                "select": ["data", "id"]
+                                            },
+                                            "mimeType": {
+                                                "default": null,
+                                                "from": {
+                                                    "var": "Query_assets"
+                                                },
+                                                "select": ["data", "mimeType"]
+                                            }
+                                        }
+                                    },
+                                    "let": [{
+                                        "Query_assets": {
+                                            "var": "X"
+                                        }
+                                    }]
+                                },
+                                "lambda": "X"
+                            }
+                        },
+                        "select": ["data"]
+                    }
+                }
+            }
+        }
+    },
+    "let": [{
+        "context": {
+            "object": {}
+        }
+    }]
+}

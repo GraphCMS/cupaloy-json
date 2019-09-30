@@ -2,12 +2,12 @@ package examples_test
 
 import (
 	"bytes"
-	"github.com/bradleyjkemp/cupaloy/v2/internal"
+	"github.com/GraphCMS/cupaloy-json/v2/internal"
 	"io/ioutil"
 	"strings"
 	"testing"
 
-	"github.com/bradleyjkemp/cupaloy/v2"
+	"github.com/GraphCMS/cupaloy-json/v2"
 	"github.com/stretchr/testify/mock"
 )
 

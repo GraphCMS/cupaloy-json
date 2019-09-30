@@ -2,14 +2,16 @@ package cupaloy
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 
-	"github.com/bradleyjkemp/cupaloy/v2/internal"
+	"github.com/GraphCMS/cupaloy-json/v2/internal"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pmezard/go-difflib/difflib"
@@ -138,4 +140,67 @@ func diffSnapshots(previous, current string) string {
 	})
 
 	return diff
+}
+
+// Equal checks equality between 2 nested interfaces, regardless of sorting order.
+func Equal(vx, vy interface{}) bool {
+	if reflect.TypeOf(vx) != reflect.TypeOf(vy) {
+		return false
+	}
+
+	switch x := vx.(type) {
+	case map[string]interface{}:
+		y := vy.(map[string]interface{})
+
+		if len(x) != len(y) {
+			return false
+		}
+
+		for k, v := range x {
+			val2 := y[k]
+
+			if (v == nil) != (val2 == nil) {
+				return false
+			}
+
+			if !Equal(v, val2) {
+				return false
+			}
+		}
+
+		return true
+	case []interface{}:
+		y := vy.([]interface{})
+
+		if len(x) != len(y) {
+			return false
+		}
+
+		var matches int
+		flagged := make([]bool, len(y))
+		for _, v := range x {
+			for i, v2 := range y {
+				if Equal(v, v2) && !flagged[i] {
+					matches++
+					flagged[i] = true
+					break
+				}
+			}
+		}
+		return matches == len(x)
+	default:
+		return vx == vy
+	}
+}
+
+// Unmarshal parses a JSON string into an interface{}
+func Unmarshal(b []byte) (interface{}, error) {
+	var j interface{}
+
+	err := json.Unmarshal(b, &j)
+	if err != nil {
+		return nil, err
+	}
+
+	return j, nil
 }

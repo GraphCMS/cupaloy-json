@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bradleyjkemp/cupaloy/v2/internal"
+	"github.com/GraphCMS/cupaloy-json/v2/internal"
 )
 
 // New constructs a new, configured instance of cupaloy using the given
@@ -19,6 +19,11 @@ func Snapshot(i ...interface{}) error {
 	return Global.snapshot(getNameOfCaller(), i...)
 }
 
+// SnapshotJSON calls Snapshotter.SnapshotJSON with the global config.
+func SnapshotJSON(i ...interface{}) error {
+	return Global.snapshotJSON(getNameOfCaller(), i...)
+}
+
 // SnapshotMulti calls Snapshotter.SnapshotMulti with the global config.
 func SnapshotMulti(snapshotID string, i ...interface{}) error {
 	snapshotName := fmt.Sprintf("%s-%s", getNameOfCaller(), snapshotID)
@@ -29,6 +34,12 @@ func SnapshotMulti(snapshotID string, i ...interface{}) error {
 func SnapshotT(t TestingT, i ...interface{}) {
 	t.Helper()
 	Global.SnapshotT(t, i...)
+}
+
+// SnapshotJSONT calls Snapshotter.SnapshotJSONT with the global config.
+func SnapshotJSONT(t TestingT, i ...interface{}) {
+	t.Helper()
+	Global.SnapshotJSONT(t, i...)
 }
 
 // Snapshot compares the given variable to its previous value stored on the filesystem.
@@ -82,6 +93,24 @@ func (c *Config) SnapshotT(t TestingT, i ...interface{}) {
 	}
 }
 
+// SnapshotJSONT is the same as SnapshotT but with better JSON comparison support
+func (c *Config) SnapshotJSONT(t TestingT, i ...interface{}) {
+	t.Helper()
+	if t.Failed() {
+		return
+	}
+
+	snapshotName := strings.Replace(t.Name(), "/", "-", -1)
+	err := c.snapshotJSON(snapshotName, i...)
+	if err != nil {
+		if c.fatalOnMismatch {
+			t.Fatal(err)
+			return
+		}
+		t.Error(err)
+	}
+}
+
 // WithOptions returns a copy of an existing Config with additional Configurators applied.
 // This can be used to apply a different option for a single call e.g.
 //  snapshotter.WithOptions(cupaloy.SnapshotSubdirectory("testdata")).SnapshotT(t, result)
@@ -119,6 +148,48 @@ func (c *Config) snapshot(snapshotName string, i ...interface{}) error {
 	if c.shouldUpdate() {
 		// updates snapshot to current value and upgrades snapshot format
 		return c.updateSnapshot(snapshotName, prevSnapshot, snapshot)
+	}
+
+	return internal.ErrSnapshotMismatch{
+		Diff: diffSnapshots(prevSnapshot, snapshot),
+	}
+}
+
+// Same as snapshot but optimized for deep comparing JSON data
+func (c *Config) snapshotJSON(snapshotName string, i ...interface{}) error {
+	snapshot := takeSnapshot(i...)
+
+	prevSnapshot, err := c.readSnapshot(snapshotName)
+	if os.IsNotExist(err) {
+		if c.createNewAutomatically {
+			return c.updateSnapshot(snapshotName, prevSnapshot, snapshot)
+		}
+		return internal.ErrNoSnapshot{Name: snapshotName}
+	}
+	if err != nil {
+		return err
+	}
+
+	if snapshot == prevSnapshot || takeV1Snapshot(i...) == prevSnapshot {
+		// previous snapshot matches current value
+		return nil
+	}
+
+	if c.shouldUpdate() {
+		// updates snapshot to current value and upgrades snapshot format
+		return c.updateSnapshot(snapshotName, prevSnapshot, snapshot)
+	}
+
+	snap1, err := Unmarshal([]byte(prevSnapshot))
+	if err != nil {
+		return err
+	}
+	snap2, err := Unmarshal([]byte(snapshot))
+	if err != nil {
+		return err
+	}
+	if Equal(snap1, snap2) {
+		return nil
 	}
 
 	return internal.ErrSnapshotMismatch{
